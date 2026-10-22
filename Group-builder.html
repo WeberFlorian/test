@@ -1,0 +1,745 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Forever Group Builder</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+Sans+SC:wght@500;700;800&family=Alegreya+Sans:ital,wght@0,400;0,500;0,700;1,400&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+/* Layout: left = party (class picker, 5 slots); right = rule ledger and raid-buff board that re-check live. Stacks on phones. */
+:root {
+  --bg: #eef1f2;
+  --surface: #ffffff;
+  --sunk: #e3e8ea;
+  --fg: #1c2226;
+  --muted: #5b666d;
+  --line: #d0d7da;
+  --accent: #2f6f73;
+  --accent-ink: #ffffff;
+  --ok: #2e7d4f;
+  --ok-bg: #e2f2e8;
+  --warn: #8a5a00;
+  --warn-bg: #f8edd6;
+  --bad: #b3261e;
+  --bad-bg: #f9e3e1;
+  --font-display: "Alegreya Sans SC", "Trebuchet MS", sans-serif;
+  --font-body: "Alegreya Sans", "Segoe UI", system-ui, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  --c-warrior: #c69b6d; --c-paladin: #f48cba; --c-hunter: #aad372; --c-rogue: #fff468;
+  --c-priest: #ffffff; --c-shaman: #0070dd; --c-mage: #3fc7eb; --c-warlock: #8788ee; --c-druid: #ff7c0a;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121618; --surface: #1b2124; --sunk: #232b2f; --fg: #e6ebed; --muted: #97a3a9; --line: #2f393d;
+    --accent: #72b9b6; --accent-ink: #0d1416;
+    --ok: #63c891; --ok-bg: #173323; --warn: #e5b24e; --warn-bg: #3a2e14; --bad: #f2837a; --bad-bg: #3d1c1a;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121618; --surface: #1b2124; --sunk: #232b2f; --fg: #e6ebed; --muted: #97a3a9; --line: #2f393d;
+  --accent: #72b9b6; --accent-ink: #0d1416;
+  --ok: #63c891; --ok-bg: #173323; --warn: #e5b24e; --warn-bg: #3a2e14; --bad: #f2837a; --bad-bg: #3d1c1a;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 16px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 20px 40px;
+}
+.wrap { max-width: 1180px; margin: 0 auto; display: grid; gap: 20px; }
+.head-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.lang { flex: none; }
+header h1 { font-family: var(--font-display); font-weight: 800; font-size: 2rem; letter-spacing: 0.02em; margin: 0; text-wrap: balance; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .cols { grid-template-columns: minmax(0, 1fr); } }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px; display: grid; gap: 14px; min-width: 0; }
+.label { font-family: var(--font-display); font-weight: 700; font-size: 0.82rem; letter-spacing: 0.08em; color: var(--muted); margin: 0; }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: 1.25rem; margin: 0; letter-spacing: 0.02em; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.picker { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.cls { display: flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; text-align: left; font-weight: 500; }
+.cls:hover:not(:disabled) { border-color: var(--accent); }
+.cls:disabled { opacity: 0.45; cursor: not-allowed; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; border: 1px solid color-mix(in srgb, var(--fg) 25%, transparent); }
+.presets { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; }
+.preset { display: grid; gap: 2px; border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 10px; text-align: left; }
+.preset:hover { border-color: var(--accent); }
+.preset span { font-size: 0.85rem; color: var(--muted); }
+
+.slots { display: grid; gap: 8px; }
+.slot { display: grid; grid-template-columns: 26px minmax(0, 1fr) auto; gap: 10px; align-items: center; border: 1px solid var(--line); border-radius: 8px; padding: 10px; background: var(--surface); }
+.slot.empty { border-style: dashed; background: transparent; color: var(--muted); }
+.slot .num { font-family: var(--font-data); font-size: 0.85rem; color: var(--muted); text-align: center; }
+.slot .who { display: grid; gap: 6px; min-width: 0; }
+.slot .name { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.slot .name .swatch { width: 14px; height: 14px; }
+.ctrls { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; padding: 3px 10px; font-size: 0.9rem; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); font-weight: 700; }
+select { font: inherit; font-size: 0.9rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--fg); padding: 3px 6px; }
+.remove { border: 1px solid var(--line); background: transparent; border-radius: 6px; padding: 3px 9px; font-size: 0.9rem; color: var(--muted); }
+.remove:hover { color: var(--bad); border-color: var(--bad); }
+
+.summary { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.score { font-family: var(--font-data); font-size: 0.95rem; font-variant-numeric: tabular-nums; padding: 3px 10px; border-radius: 999px; }
+.rules { display: grid; gap: 10px; }
+.rule { border: 1px solid var(--line); border-left-width: 4px; border-radius: 8px; padding: 10px 12px; display: grid; gap: 6px; }
+.rule[data-state="ok"] { border-left-color: var(--ok); }
+.rule[data-state="part"] { border-left-color: var(--warn); }
+.rule[data-state="bad"] { border-left-color: var(--bad); }
+.rule-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.rule-title { font-weight: 700; }
+.pill { font-family: var(--font-display); font-weight: 700; font-size: 0.78rem; letter-spacing: 0.06em; border-radius: 999px; padding: 2px 9px; white-space: nowrap; }
+.ok { color: var(--ok); background: var(--ok-bg); }
+.part { color: var(--warn); background: var(--warn-bg); }
+.bad { color: var(--bad); background: var(--bad-bg); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: baseline; border-radius: 6px; padding: 3px 8px; font-size: 0.88rem; }
+.chip b { font-weight: 700; }
+.chip.none { color: var(--muted); background: var(--sunk); }
+#buffs { border-left-color: var(--accent); }
+.buff-groups { display: grid; gap: 10px; }
+.buff-group { display: grid; gap: 5px; }
+.buff-group .label { font-size: 0.74rem; }
+@media (max-width: 480px) { .picker { grid-template-columns: repeat(2, minmax(0, 1fr)); } header h1 { font-size: 1.6rem; } }
+@media (prefers-reduced-motion: no-preference) { .rule, .slot { transition: border-color 0.15s ease; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="head-row">
+      <h1 data-i18n>Forever Group Builder</h1>
+      <div class="seg lang" role="group" aria-label="Language" id="lang">
+        <button type="button" data-lang="en" aria-pressed="true">EN</button>
+        <button type="button" data-lang="de" aria-pressed="false">DE</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="cols">
+    <section class="panel" aria-labelledby="party-h">
+      <div class="summary">
+        <h2 id="party-h" data-i18n>Party</h2>
+        <button type="button" class="remove" id="clear-all" data-i18n>Remove all</button>
+      </div>
+      <div>
+        <p class="label" data-i18n>Add a class</p>
+        <div class="picker" id="picker"></div>
+      </div>
+      <div class="slots" id="slots"></div>
+      <div>
+        <p class="label" data-i18n>Presets</p>
+        <div class="presets" id="presets"></div>
+      </div>
+    </section>
+
+    <section class="panel" aria-labelledby="rules-h">
+      <div class="summary">
+        <h2 id="rules-h" data-i18n>Minimum rules</h2>
+        <span class="score" id="score"></span>
+      </div>
+      <div class="rules" id="rules"></div>
+      <div class="rule" id="buffs" data-state="ok"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const CLASSES = {
+  warrior: { name: "Warrior", roles: ["tank", "dps"] },
+  paladin: { name: "Paladin", roles: ["tank", "heal", "dps"] },
+  hunter:  { name: "Hunter",  roles: ["dps"] },
+  rogue:   { name: "Rogue",   roles: ["dps"] },
+  priest:  { name: "Priest",  roles: ["heal", "dps"] },
+  shaman:  { name: "Shaman",  roles: ["heal", "dps"] },
+  mage:    { name: "Mage",    roles: ["dps"] },
+  warlock: { name: "Warlock", roles: ["dps"] },
+  druid:   { name: "Druid",   roles: ["tank", "heal", "dps"] }
+};
+const ROLE_LABEL = { tank: "Tank", heal: "Healer", dps: "DPS" };
+/* Flo, 2026-10-22: a Warlock's Spell Lock always counts as an interrupt (a Bear's Feral Charge doesn't, so it isn't listed). */
+const SPELL_LOCK_COUNTS = true;
+const DRUID_SPECS = { balance: "Balance", feral: "Feral (Cat)" };
+/* Flo, 2026-10-22: a healing Priest picks Discipline (Power Infusion) or Holy. A DPS Priest is always Shadow. */
+const PRIEST_SPECS = { discipline: "Discipline", holy: "Holy" };
+
+/* Flo, 2026-10-22: the page opens empty; a preset loads a whole group in one click. */
+const PRESETS = [
+  { name: "Magic damage",    party: [["mage","dps"],["druid","dps","balance"],["warlock","dps"],["paladin","tank"],["priest","heal"]] },
+  { name: "Physical damage", party: [["warrior","tank"],["rogue","dps"],["druid","dps","feral"],["shaman","heal"],["paladin","dps"]] }
+];
+
+/* Raid buffs and utility, shown like the crowd-control rule. "from" names who would bring a missing one.
+   Flo, 2026-10-22: the old "Also in / Missing" utility lists moved here; enemy attack power, Lay on Hands and backup tank were dropped. */
+const BUFF_GROUPS = [
+  ["Stats", [
+    { key: "stamina",   name: "Stamina +70",                  from: "Priest" },
+    { key: "bloodpact", name: "Blood Pact +54 Stamina",       from: "Warlock" },
+    { key: "int",       name: "Intellect +31",                from: "Mage" },
+    { key: "spirit",    name: "Spirit +40",                   from: "Priest" },
+    { key: "motw",      name: "Mark of the Wild",             from: "Druid" },
+    { key: "kings",     name: "Blessing of Kings +10% stats", from: "Paladin" }
+  ]],
+  ["Physical damage", [
+    { key: "battleshout", name: "Battle Shout",                       from: "Warrior" },
+    { key: "might",       name: "Blessing of Might +133 AP",          from: "Paladin" },
+    { key: "soe",         name: "Strength of Earth +53 Str",          from: "Shaman" },
+    { key: "goa",         name: "Grace of Air +89 Agi",               from: "Shaman" },
+    { key: "wf",          name: "Windfury Totem",                     from: "Shaman" },
+    { key: "ft",          name: "Flametongue Totem (not with Windfury)", from: "Shaman" },
+    { key: "lotp",        name: "Leader of the Pack +3% melee/ranged crit", from: "Feral or Bear Druid" },
+    { key: "sunder",      name: "Sunder Armor",                       from: "Warrior" },
+    { key: "expose",      name: "Expose Armor",                       from: "Rogue" },
+    { key: "faeriefire",  name: "Faerie Fire",                        from: "Druid" },
+    { key: "cor",         name: "Curse of Recklessness",              from: "Warlock" }
+  ]],
+  ["Spells, healing and mana", [
+    { key: "moonkin",       name: "Moonkin Aura +3% spell crit",  from: "Balance Druid" },
+    { key: "darkinsp",      name: "Dark Inspiration +15% Spirit", from: "Shadow Priest" },
+    { key: "ve",            name: "Vampiric Embrace",             from: "Shadow Priest" },
+    { key: "pi",            name: "Power Infusion +20% spell damage/healing", from: "Discipline Priest" },
+    { key: "wisdom",        name: "Blessing of Wisdom",           from: "Paladin" },
+    { key: "manaspring",    name: "Mana Spring Totem",            from: "Shaman" },
+    { key: "healingstream", name: "Healing Stream Totem",         from: "Shaman" },
+    { key: "thorns",        name: "Thorns",                       from: "Druid" }
+  ]],
+  ["Defense and resistances", [
+    { key: "devotion",  name: "Devotion Aura", from: "Paladin" },
+    { key: "shadowres", name: "Shadow +60", from: "Priest or Paladin" },
+    { key: "fireres",   name: "Fire +60",   from: "Paladin or Shaman" },
+    { key: "frostres",  name: "Frost +60",  from: "Paladin or Shaman" },
+    { key: "natureres", name: "Nature +60", from: "Hunter or Shaman" }
+  ]],
+  ["Utility", [
+    { key: "water",       name: "Conjured water and food",      from: "Mage" },
+    { key: "healthstone", name: "Healthstones",                 from: "Warlock" },
+    { key: "summon",      name: "Summoning",                    from: "Warlock" },
+    { key: "mana",        name: "Mana cooldown for the healer", from: "Druid (Innervate), Restoration Shaman (Mana Tide Totem)" },
+    { key: "enrage",      name: "Enrage removal",               from: "Hunter (Tranquilizing Shot)" },
+    { key: "lockpick",    name: "Lockpicking",                  from: "Rogue" },
+    { key: "comprehend",  name: "Comprehend Scroll (deciphers scrolls)", from: "Mage" }
+  ]]
+];
+
+/* Buffs that share a slot. Each Shaman drops one totem per element.
+   Aspect of the Wild replaces the Hunter's own Aspect of the Hawk, so it always costs something.
+   Flo, 2026-10-22: Paladin blessings and auras count like a Warlock's demons (swap to what's needed), so they have no slot here. */
+const FAMILIES = {
+  earth:    { cls: "shaman",  note: "one Earth totem per Shaman" },
+  air:      { cls: "shaman",  note: "one Air totem per Shaman" },
+  fire:     { cls: "shaman",  note: "one Fire totem per Shaman" },
+  water:    { cls: "shaman",  note: "one Water totem per Shaman" },
+  aspect:   { cls: null,      note: "replaces the Hunter's Aspect of the Hawk" }
+};
+
+/* Flo, 2026-10-22: English/German switch. Every visible string goes through t(), and DE is keyed by the English text.
+   German spell names are the ones from the German Classic client; Forever's new talents keep their English name until a German client is out. */
+const DE = {
+  // Page
+  "Forever Group Builder": "Forever Gruppenplaner",
+  "Language": "Sprache",
+  "Party": "Gruppe",
+  "Remove all": "Alle entfernen",
+  "Presets": "Presets",
+  "Magic damage": "Magischer Schaden",
+  "Add a class": "Klasse hinzufügen",
+  "Minimum rules": "Mindestregeln",
+  "Empty slot": "Leerer Platz",
+  "Remove": "Entfernen",
+  "Add {cls}": "{cls} hinzufügen",
+  "Role for slot {n}": "Rolle für Platz {n}",
+  "Druid spec for slot {n}": "Druiden-Spezialisierung für Platz {n}",
+  "Priest spec for slot {n}": "Priester-Spezialisierung für Platz {n}",
+  "Remove {cls} from slot {n}": "{cls} von Platz {n} entfernen",
+  "{spec} {cls}": "{cls} ({spec})",
+  "{name} tank": "{name} (Tank)",
+  "{name} healer": "{name} (Heiler)",
+  "Met": "Erfüllt",
+  "Partly": "Teilweise",
+  "Not met": "Nicht erfüllt",
+  "{met} of {total} met": "{met} von {total} erfüllt",
+  "{have} of {total}": "{have} von {total}",
+  "or": "oder",
+  "only {x}": "nur {x}",
+  "nobody": "niemand",
+  "none": "keine",
+  "nothing": "nichts",
+  // Classes, roles, specs
+  "Warrior": "Krieger", "Paladin": "Paladin", "Hunter": "Jäger", "Rogue": "Schurke", "Priest": "Priester",
+  "Shaman": "Schamane", "Mage": "Magier", "Warlock": "Hexenmeister", "Druid": "Druide",
+  "Tank": "Tank", "Healer": "Heiler", "DPS": "DPS",
+  "Balance": "Gleichgewicht", "Feral (Cat)": "Wilder Kampf (Katze)", "Discipline": "Disziplin", "Holy": "Heilig",
+  // Debuff and creature types
+  "Magic": "Magie", "Curse": "Fluch", "Poison": "Gift", "Disease": "Krankheit",
+  "Humanoid": "Humanoid", "Beast": "Wildtier", "Undead": "Untoter", "Demon": "Dämon", "Elemental": "Elementar", "Dragonkin": "Drachkin",
+  // Rules
+  "Group shape": "Gruppenaufbau",
+  "Tanks": "Tanks", "Healers": "Heiler", "Players": "Spieler",
+  "Remove every debuff type": "Jeden Debuff-Typ entfernen",
+  "At least 2 interrupts that always work": "Mindestens 2 Unterbrechungen, die immer funktionieren",
+  "Not counted": "Zählt nicht",
+  "Purge a magic buff from an enemy": "Magischen Buff vom Gegner entfernen",
+  "No Priest, Shaman or Felhunter": "Kein Priester, Schamane oder Teufelsjäger",
+  "Polymorph": "Verwandlung",
+  "Reliable crowd control for each creature type": "Verlässliche Kontrolle für jeden Kreaturentyp",
+  "Fear protection": "Schutz vor Furcht",
+  "No Priest or Shaman": "Kein Priester oder Schamane",
+  // Raid buffs
+  "Raid buffs and utility": "Raid-Buffs und Nützliches",
+  "Utility": "Nützliches",
+  "Stats": "Werte",
+  "Stamina +70": "Ausdauer +70",
+  "Blood Pact +54 Stamina": "Blutpakt +54 Ausdauer",
+  "Intellect +31": "Intelligenz +31",
+  "Spirit +40": "Willenskraft +40",
+  "Mark of the Wild": "Mal der Wildnis",
+  "Blessing of Kings +10% stats": "Segen der Könige +10 % Werte",
+  "Physical damage": "Körperlicher Schaden",
+  "Battle Shout": "Schlachtruf",
+  "Blessing of Might +133 AP": "Segen der Macht +133 Angriffskraft",
+  "Strength of Earth +53 Str": "Erdstärke +53 Stärke",
+  "Grace of Air +89 Agi": "Luftgleiche Anmut +89 Beweglichkeit",
+  "Windfury Totem": "Totem des Windzorns",
+  "Flametongue Totem (not with Windfury)": "Totem der Flammenzunge (nicht mit Windzorn)",
+  "Leader of the Pack +3% melee/ranged crit": "Rudelführer +3 % Nah-/Fernkampf-Krit",
+  "Spells, healing and mana": "Zauber, Heilung und Mana",
+  "Moonkin Aura +3% spell crit": "Mondkin-Aura +3 % Zauberkrit",
+  "Dark Inspiration +15% Spirit": "Dark Inspiration +15 % Willenskraft",
+  "Vampiric Embrace": "Vampirumarmung",
+  "Blessing of Wisdom": "Segen der Weisheit",
+  "Mana Spring Totem": "Totem der Manaquelle",
+  "Healing Stream Totem": "Totem des heilenden Flusses",
+  "Defense and resistances": "Verteidigung und Widerstände",
+  "Devotion Aura": "Aura der Hingabe",
+  "Thorns": "Dornen",
+  "Shadow +60": "Schatten +60", "Fire +60": "Feuer +60", "Frost +60": "Frost +60", "Nature +60": "Natur +60",
+  "Feral or Bear Druid": "Druide (Wilder Kampf oder Bär)",
+  "Balance Druid": "Druide (Gleichgewicht)",
+  "Discipline Priest": "Priester (Disziplin)",
+  "Power Infusion +20% spell damage/healing": "Seele der Macht +20 % Zauberschaden/Heilung",
+  "Power Infusion, Discipline talent": "Seele der Macht, Talent (Disziplin)",
+  "Shadow Priest": "Schattenpriester",
+  "Priest or Paladin": "Priester oder Paladin",
+  "Paladin or Shaman": "Paladin oder Schamane",
+  "Hunter or Shaman": "Jäger oder Schamane",
+  "one Earth totem per Shaman": "ein Erdtotem pro Schamane",
+  "one Air totem per Shaman": "ein Lufttotem pro Schamane",
+  "one Fire totem per Shaman": "ein Feuertotem pro Schamane",
+  "one Water totem per Shaman": "ein Wassertotem pro Schamane",
+  "replaces the Hunter's Aspect of the Hawk": "ersetzt den Aspekt des Falken des Jägers",
+  // Utility
+  "Enrage removal": "Wutanfall entfernen",
+  "Hunter (Tranquilizing Shot)": "Jäger (Einlullender Schuss)",
+  "Conjured water and food": "Herbeigezaubertes Wasser und Essen",
+  "Healthstones": "Gesundheitssteine",
+  "Summoning": "Beschwören",
+  "Mana cooldown for the healer": "Mana-Cooldown für den Heiler",
+  "Druid (Innervate), Restoration Shaman (Mana Tide Totem)": "Druide (Anregen), Wiederherstellungs-Schamane (Totem der Manaflut)",
+  "Lockpicking": "Schlossknacken",
+  "Comprehend Scroll (deciphers scrolls)": "Comprehend Scroll (entziffert Schriftrollen)",
+  "Comprehend Scroll": "Comprehend Scroll",
+  // Spells in each class kit
+  "Shield Bash": "Schildhieb", "Pummel": "Zuschlagen",
+  "Shield Slam (Protection talent, 50% chance)": "Schildschlag (Schutz-Talent, 50 % Chance)",
+  "Sunder Armor": "Rüstung zerreißen",
+  "Cleanse": "Läutern", "Repentance": "Buße",
+  "Blessing of Kings": "Segen der Könige", "Blessing of Might": "Segen der Macht",
+  "Shadow Resistance Aura": "Aura des Schattenwiderstands", "Fire Resistance Aura": "Aura des Feuerwiderstands", "Frost Resistance Aura": "Aura des Frostwiderstands",
+  "Freezing Trap": "Eiskältefalle", "Aspect of the Wild": "Aspekt der Wildnis", "Tranquilizing Shot": "Einlullender Schuss",
+  "Kick": "Tritt", "Sap": "Kopfnuss", "Blind": "Blenden", "Expose Armor": "Rüstung schwächen", "Pick Lock": "Schloss knacken",
+  "Dispel Magic": "Magiebannung", "Cure Disease": "Krankheit heilen", "Shackle Undead": "Untote fesseln", "Fear Ward": "Furchtzauberschutz",
+  "Silence (Shadow)": "Stille (Schatten)",
+  "Dark Inspiration, Shadow talent": "Dark Inspiration, Schatten-Talent",
+  "Vampiric Embrace, Shadow talent": "Vampirumarmung, Schatten-Talent",
+  "Prayer of Fortitude": "Gebet der Seelenstärke", "Prayer of Spirit": "Gebet der Willenskraft", "Prayer of Shadow Protection": "Gebet des Schattenschutzes",
+  "Cure Poison": "Vergiftung heilen", "Earth Shock": "Erdschock", "Tremor Totem": "Totem des Erdstoßes", "Purge": "Reinigen",
+  "Strength of Earth Totem": "Totem der Erdstärke", "Grace of Air Totem": "Totem der luftgleichen Anmut",
+  "Nature Resistance Totem": "Totem des Naturwiderstands", "Flametongue Totem": "Totem der Flammenzunge",
+  "Frost Resistance Totem": "Totem des Frostwiderstands", "Fire Resistance Totem": "Totem des Feuerwiderstands",
+  "Mana Tide Totem": "Totem der Manaflut",
+  "Remove Lesser Curse": "Geringen Fluch aufheben", "Counterspell": "Gegenzauber", "Arcane Brilliance": "Arkane Brillanz", "Conjure Water": "Wasser herbeizaubern",
+  "Banish": "Verbannen", "Devour Magic (Felhunter)": "Magie verschlingen (Teufelsjäger)", "Spell Lock (Felhunter)": "Zaubersperre (Teufelsjäger)",
+  "Seduction (Succubus)": "Verführung (Sukkubus)", "Imp": "Wichtel", "Create Healthstone": "Gesundheitsstein herstellen",
+  "Ritual of Summoning": "Ritual der Beschwörung", "Curse of Recklessness": "Fluch der Tollkühnheit",
+  "Remove Curse": "Fluch aufheben", "Abolish Poison": "Vergiftung aufheben", "Hibernate": "Winterschlaf", "Entangling Roots": "Wucherwurzeln",
+  "Gift of the Wild": "Gabe der Wildnis",
+  "Leader of the Pack, Feral talent": "Rudelführer, Talent (Wilder Kampf)",
+  "Moonkin Aura, Balance talent": "Mondkin-Aura, Talent (Gleichgewicht)",
+  "Innervate": "Anregen", "Faerie Fire": "Feenfeuer"
+};
+let LANG = "en";
+const i18nMissing = new Set();
+function t(en, vars) {
+  let s = en;
+  if (LANG === "de") { if (en in DE) s = DE[en]; else i18nMissing.add(en); }
+  return vars ? s.replace(/\{(\w+)\}/g, (_, k) => vars[k]) : s;
+}
+
+let party = [];
+let nextId = 1;
+
+function member(cls, role, spec) {
+  return { id: nextId++, cls, role, spec: cls === "druid" ? (spec || "balance") : cls === "priest" ? (spec || "discipline") : null };
+}
+
+function defaultRole(cls) {
+  const roles = CLASSES[cls].roles;
+  const hasTank = party.some(m => m.role === "tank");
+  const hasHeal = party.some(m => m.role === "heal");
+  if (!hasTank && roles.includes("tank")) return "tank";
+  if (!hasHeal && roles.includes("heal")) return "heal";
+  return roles.includes("dps") ? "dps" : roles[0];
+}
+
+/* What one party member brings. Each entry names the spell (in English; evaluate() translates) so the ledger can say who covers what. */
+function kit(m) {
+  const k = { dispel: {}, interrupt: [], interruptExtra: [], cc: {}, ccPartial: {}, ccSuccubus: {}, ccFallback: [], fear: [], purge: [], purgeFallback: [], buffs: [] };
+  const add = (obj, key, val) => { (obj[key] = obj[key] || []).push(val); };
+  const buff = (key, spell, family) => k.buffs.push([key, spell, family || null]);
+  const bear = m.cls === "druid" && m.role === "tank";
+  switch (m.cls) {
+    case "warrior":
+      k.interrupt.push(m.role === "tank" ? "Shield Bash" : "Pummel");
+      if (m.role === "tank") k.purgeFallback.push("Shield Slam (Protection talent, 50% chance)");
+      buff("battleshout", "Battle Shout");
+      buff("sunder", "Sunder Armor");
+      break;
+    case "paladin":
+      ["magic", "poison", "disease"].forEach(type => add(k.dispel, type, "Cleanse"));
+      if (m.role === "dps") add(k.ccPartial, "humanoid", "Repentance");
+      buff("kings", "Blessing of Kings");
+      buff("might", "Blessing of Might");
+      buff("wisdom", "Blessing of Wisdom");
+      buff("devotion", "Devotion Aura");
+      buff("shadowres", "Shadow Resistance Aura");
+      buff("fireres", "Fire Resistance Aura");
+      buff("frostres", "Frost Resistance Aura");
+      break;
+    case "hunter":
+      k.ccFallback.push("Freezing Trap");
+      buff("natureres", "Aspect of the Wild", "aspect");
+      buff("enrage", "Tranquilizing Shot");
+      break;
+    case "rogue":
+      k.interrupt.push("Kick");
+      add(k.ccPartial, "humanoid", "Sap");
+      k.ccFallback.push("Blind");
+      buff("expose", "Expose Armor");
+      buff("lockpick", "Pick Lock");
+      break;
+    case "priest":
+      add(k.dispel, "magic", "Dispel Magic");
+      add(k.dispel, "disease", "Cure Disease");
+      add(k.cc, "undead", "Shackle Undead");
+      k.fear.push("Fear Ward");
+      k.purge.push("Dispel Magic");
+      if (m.role === "dps") {
+        k.interrupt.push("Silence (Shadow)");
+        buff("darkinsp", "Dark Inspiration, Shadow talent");
+        buff("ve", "Vampiric Embrace, Shadow talent");
+      }
+      if (m.role === "heal" && m.spec === "discipline") buff("pi", "Power Infusion, Discipline talent");
+      buff("stamina", "Prayer of Fortitude");
+      buff("spirit", "Prayer of Spirit");
+      buff("shadowres", "Prayer of Shadow Protection");
+      break;
+    case "shaman":
+      add(k.dispel, "poison", "Cure Poison");
+      add(k.dispel, "disease", "Cure Disease");
+      k.interrupt.push("Earth Shock");
+      k.fear.push("Tremor Totem");
+      k.purge.push("Purge");
+      buff("soe", "Strength of Earth Totem", "earth");
+      buff("goa", "Grace of Air Totem", "air");
+      buff("wf", "Windfury Totem", "air");
+      buff("natureres", "Nature Resistance Totem", "air");
+      buff("ft", "Flametongue Totem", "fire");
+      buff("frostres", "Frost Resistance Totem", "fire");
+      buff("manaspring", "Mana Spring Totem", "water");
+      buff("healingstream", "Healing Stream Totem", "water");
+      buff("fireres", "Fire Resistance Totem", "water");
+      if (m.role === "heal") buff("mana", "Mana Tide Totem");
+      break;
+    case "mage":
+      add(k.dispel, "curse", "Remove Lesser Curse");
+      k.interrupt.push("Counterspell");
+      add(k.cc, "humanoid", "Polymorph");
+      add(k.cc, "beast", "Polymorph");
+      buff("int", "Arcane Brilliance");
+      buff("water", "Conjure Water");
+      buff("comprehend", "Comprehend Scroll");
+      break;
+    case "warlock":
+      add(k.cc, "demon", "Banish");
+      add(k.cc, "elemental", "Banish");
+      add(k.dispel, "magic", "Devour Magic (Felhunter)");
+      (SPELL_LOCK_COUNTS ? k.interrupt : k.interruptExtra).push("Spell Lock (Felhunter)");
+      k.purge.push("Devour Magic (Felhunter)");
+      add(k.ccSuccubus, "humanoid", "Seduction (Succubus)");
+      buff("bloodpact", "Imp");
+      buff("healthstone", "Create Healthstone");
+      buff("summon", "Ritual of Summoning");
+      buff("cor", "Curse of Recklessness");
+      break;
+    case "druid":
+      if (!bear) {
+        add(k.dispel, "curse", "Remove Curse");
+        add(k.dispel, "poison", "Abolish Poison");
+        add(k.cc, "beast", "Hibernate");
+        add(k.cc, "dragonkin", "Hibernate");
+        k.ccFallback.push("Entangling Roots");
+      }
+      buff("motw", "Gift of the Wild");
+      buff("thorns", "Thorns");
+      if (bear || (m.role === "dps" && m.spec === "feral")) buff("lotp", "Leader of the Pack, Feral talent");
+      if (m.role === "dps" && m.spec === "balance") buff("moonkin", "Moonkin Aura, Balance talent");
+      buff("mana", "Innervate");
+      buff("faeriefire", "Faerie Fire");
+      break;
+  }
+  return k;
+}
+
+const DEBUFFS = [["magic", "Magic"], ["curse", "Curse"], ["poison", "Poison"], ["disease", "Disease"]];
+const CREATURES = [["humanoid", "Humanoid"], ["beast", "Beast"], ["undead", "Undead"], ["demon", "Demon"], ["elemental", "Elemental"], ["dragonkin", "Dragonkin"]];
+
+/* A buff is green when nothing else competes for its slot, amber when it shares a Shaman's totem slot with more buffs than there are Shamans. */
+function evaluateBuffs(providers) {
+  const slots = f => FAMILIES[f].cls ? party.filter(m => m.cls === FAMILIES[f].cls).length : 0;
+  const limited = {};
+  for (const key in providers) {
+    if (providers[key].some(p => !p.family)) continue;
+    providers[key].forEach(p => (limited[p.family] = limited[p.family] || new Set()).add(key));
+  }
+  let have = 0, total = 0;
+  const groups = BUFF_GROUPS.map(([title, list]) => ({ title: t(title), chips: list.map(b => {
+    total++;
+    const name = t(b.name);
+    const ps = providers[b.key];
+    if (!ps) return { state: "none", text: `<b>${name}</b> ${t(b.from)}` };
+    have++;
+    const who = [...new Set(ps.map(p => name.startsWith(p.spell) ? p.cls : `${p.cls} (${p.spell})`))].join(", ");
+    if (ps.some(p => !p.family)) return { state: "ok", text: `<b>${name}</b> ${who}` };
+    const fams = [...new Set(ps.map(p => p.family))];
+    if (fams.some(f => limited[f].size <= slots(f))) return { state: "ok", text: `<b>${name}</b> ${who}` };
+    return { state: "part", text: `<b>${name}</b> ${who} · ${fams.map(f => t(FAMILIES[f].note)).join(` ${t("or")} `)}` };
+  }) }));
+  return { groups, have, total };
+}
+
+function evaluate() {
+  const tag = m => t(CLASSES[m.cls].name);
+  const dispel = {}, cc = {}, ccPartial = {}, ccSuccubus = [], interrupts = [], interruptExtra = [], fear = [], fallback = [], purge = [], purgeFallback = [], buffProviders = {};
+  party.forEach(m => {
+    const k = kit(m);
+    for (const type in k.dispel) k.dispel[type].forEach(s => (dispel[type] = dispel[type] || []).push(`${tag(m)}: ${t(s)}`));
+    for (const type in k.cc) k.cc[type].forEach(s => (cc[type] = cc[type] || []).push(`${tag(m)}: ${t(s)}`));
+    for (const type in k.ccPartial) k.ccPartial[type].forEach(s => (ccPartial[type] = ccPartial[type] || []).push(t(s)));
+    for (const type in k.ccSuccubus) k.ccSuccubus[type].forEach(s => ccSuccubus.push([type, tag(m), s]));
+    k.interrupt.forEach(s => interrupts.push(`${tag(m)}: ${t(s)}`));
+    k.interruptExtra.forEach(s => interruptExtra.push(`${tag(m)}: ${t(s)}`));
+    k.fear.forEach(s => fear.push(`${tag(m)}: ${t(s)}`));
+    k.ccFallback.forEach(s => fallback.push(t(s)));
+    k.purge.forEach(s => purge.push(`${tag(m)}: ${t(s)}`));
+    k.purgeFallback.forEach(s => purgeFallback.push(`${tag(m)}: ${t(s)}`));
+    k.buffs.forEach(([key, s, family]) => (buffProviders[key] = buffProviders[key] || []).push({ cls: tag(m), spell: t(s), family }));
+  });
+
+  const tanks = party.filter(m => m.role === "tank").length;
+  const heals = party.filter(m => m.role === "heal").length;
+  const rules = [];
+
+  rules.push({
+    title: t("Group shape"),
+    state: tanks >= 1 && heals >= 1 ? "ok" : "bad",
+    chips: [
+      { state: tanks >= 1 ? "ok" : "bad", text: `<b>${t("Tanks")}</b> ${tanks}` },
+      { state: heals >= 1 ? "ok" : "bad", text: `<b>${t("Healers")}</b> ${heals}` },
+      { state: "ok", text: `<b>${t("Players")}</b> ${party.length} / 5` }
+    ]
+  });
+
+  const dChips = DEBUFFS.map(([type, n]) => ({ state: dispel[type] ? "ok" : "bad", text: `<b>${t(n)}</b> ${dispel[type] ? dispel[type].join(", ") : t("nobody")}` }));
+  rules.push({ title: t("Remove every debuff type"),
+    state: dChips.every(c => c.state === "ok") ? "ok" : "bad", chips: dChips });
+
+  const iState = interrupts.length >= 2 ? "ok" : interrupts.length === 1 ? "part" : "bad";
+  const iChips = [{ state: iState, text: `<b>${interrupts.length}</b> ${interrupts.join(", ") || t("none")}` }];
+  if (interruptExtra.length) iChips.push({ state: "none", text: `<b>${t("Not counted")}</b> ${interruptExtra.join(", ")}` });
+  rules.push({ title: t("At least 2 interrupts that always work"),
+    state: iState, chips: iChips });
+
+  const pState = purge.length ? "ok" : purgeFallback.length ? "part" : "bad";
+  rules.push({ title: t("Purge a magic buff from an enemy"),
+    state: pState, chips: [{ state: pState, text: purge.length ? purge.join(", ") : purgeFallback.length ? t("only {x}", { x: purgeFallback.join(", ") }) : t("No Priest, Shaman or Felhunter") }] });
+
+  /* Flo, 2026-10-22: Seduction counts as full humanoid CC only if the group still has 2 interrupts while the Succubus (not the Felhunter) is out.
+     Sap (before the pull) and Repentance (1 min cooldown) only count as partial, like the fallbacks. */
+  const noSpellLock = party.flatMap(m => kit(m).interrupt).filter(s => !s.startsWith("Spell Lock")).length;
+  ccSuccubus.forEach(([type, who, s]) => noSpellLock >= 2
+    ? (cc[type] = cc[type] || []).push(`${who}: ${t(s)}`)
+    : (ccPartial[type] = ccPartial[type] || []).push(t(s)));
+  const cChips = CREATURES.map(([type, n]) => {
+    if (cc[type]) return { state: "ok", text: `<b>${t(n)}</b> ${[...new Set(cc[type])].join(", ")}` };
+    const fb = [...new Set([...(ccPartial[type] || []), ...fallback])];
+    if (fb.length) return { state: "part", text: `<b>${t(n)}</b> ${t("only {x}", { x: fb.join(" / ") })}` };
+    return { state: "bad", text: `<b>${t(n)}</b> ${t("nothing")}` };
+  });
+  const cState = cChips.every(c => c.state === "ok") ? "ok" : cChips.some(c => c.state === "bad") ? "bad" : "part";
+  rules.push({ title: t("Reliable crowd control for each creature type"),
+    state: cState, chips: cChips });
+
+  rules.push({ title: t("Fear protection"),
+    state: fear.length ? "ok" : "bad", chips: [{ state: fear.length ? "ok" : "bad", text: fear.length ? fear.join(", ") : t("No Priest or Shaman") }] });
+
+  return { rules, buffs: evaluateBuffs(buffProviders) };
+}
+
+function el(tag, attrs = {}, html) {
+  const e = document.createElement(tag);
+  for (const a in attrs) e.setAttribute(a, attrs[a]);
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+}
+
+function renderPicker() {
+  const box = document.getElementById("picker");
+  box.innerHTML = "";
+  Object.entries(CLASSES).forEach(([key, c]) => {
+    const b = el("button", { type: "button", class: "cls", id: `add-${key}` });
+    b.innerHTML = `<span class="swatch" style="background: var(--c-${key})"></span>${t(c.name)}`;
+    b.disabled = party.length >= 5;
+    b.setAttribute("aria-label", t("Add {cls}", { cls: t(c.name) }));
+    b.addEventListener("click", () => { if (party.length < 5) { party.push(member(key, defaultRole(key))); render(); } });
+    box.appendChild(b);
+  });
+}
+
+function select(id, label, options, value, onChange) {
+  const s = el("select", { id, "aria-label": label });
+  Object.entries(options).forEach(([v, n]) => { const o = el("option", { value: v }, n); if (value === v) o.selected = true; s.appendChild(o); });
+  s.addEventListener("change", () => onChange(s.value));
+  return s;
+}
+
+function renderSlots() {
+  const box = document.getElementById("slots");
+  box.innerHTML = "";
+  const tr = specs => Object.fromEntries(Object.entries(specs).map(([k, v]) => [k, t(v)]));
+  const specs = tr(DRUID_SPECS), priestSpecs = tr(PRIEST_SPECS);
+  for (let i = 0; i < 5; i++) {
+    const m = party[i];
+    if (!m) {
+      box.appendChild(el("div", { class: "slot empty" }, `<span class="num">${i + 1}</span><span>${t("Empty slot")}</span><span></span>`));
+      continue;
+    }
+    const c = CLASSES[m.cls];
+    const slot = el("div", { class: "slot" });
+    slot.appendChild(el("span", { class: "num" }, String(i + 1)));
+    const who = el("div", { class: "who" });
+    who.appendChild(el("div", { class: "name" }, `<span class="swatch" style="background: var(--c-${m.cls})"></span>${t(c.name)}`));
+    const ctrls = el("div", { class: "ctrls" });
+    const seg = el("div", { class: "seg", role: "group", "aria-label": t("Role for slot {n}", { n: i + 1 }) });
+    c.roles.forEach(r => {
+      const b = el("button", { type: "button", "aria-pressed": String(m.role === r) }, t(ROLE_LABEL[r]));
+      b.addEventListener("click", () => { m.role = r; render(); });
+      seg.appendChild(b);
+    });
+    ctrls.appendChild(seg);
+    if (m.cls === "druid" && m.role === "dps") ctrls.appendChild(select(`spec-${m.id}`, t("Druid spec for slot {n}", { n: i + 1 }), specs, m.spec, v => { m.spec = v; render(); }));
+    if (m.cls === "priest" && m.role === "heal") ctrls.appendChild(select(`spec-${m.id}`, t("Priest spec for slot {n}", { n: i + 1 }), priestSpecs, m.spec, v => { m.spec = v; render(); }));
+    who.appendChild(ctrls);
+    slot.appendChild(who);
+    const rm = el("button", { type: "button", class: "remove", "aria-label": t("Remove {cls} from slot {n}", { cls: t(c.name), n: i + 1 }) }, t("Remove"));
+    rm.addEventListener("click", () => { party = party.filter(x => x.id !== m.id); render(); });
+    slot.appendChild(rm);
+    box.appendChild(slot);
+  }
+}
+
+function renderBuffs(buffs) {
+  const card = document.getElementById("buffs");
+  card.innerHTML = "";
+  card.appendChild(el("div", { class: "rule-head" }, `<span class="rule-title">${t("Raid buffs and utility")}</span><span class="pill ${buffs.have ? "ok" : "bad"}">${t("{have} of {total}", { have: buffs.have, total: buffs.total })}</span>`));
+  const wrap = el("div", { class: "buff-groups" });
+  buffs.groups.forEach(g => {
+    const grp = el("div", { class: "buff-group" });
+    grp.appendChild(el("p", { class: "label" }, g.title));
+    const chips = el("div", { class: "chips" });
+    g.chips.forEach(ch => chips.appendChild(el("span", { class: `chip ${ch.state}` }, ch.text)));
+    grp.appendChild(chips);
+    wrap.appendChild(grp);
+  });
+  card.appendChild(wrap);
+}
+
+function renderRules() {
+  const { rules, buffs } = evaluate();
+  const box = document.getElementById("rules");
+  box.innerHTML = "";
+  const PILL = { ok: t("Met"), part: t("Partly"), bad: t("Not met") };
+  rules.forEach(r => {
+    const card = el("div", { class: "rule", "data-state": r.state });
+    card.appendChild(el("div", { class: "rule-head" }, `<span class="rule-title">${r.title}</span><span class="pill ${r.state}">${PILL[r.state]}</span>`));
+    const chips = el("div", { class: "chips" });
+    r.chips.forEach(ch => chips.appendChild(el("span", { class: `chip ${ch.state}` }, ch.text)));
+    card.appendChild(chips);
+    box.appendChild(card);
+  });
+  const met = rules.filter(r => r.state === "ok").length;
+  const score = document.getElementById("score");
+  score.textContent = t("{met} of {total} met", { met, total: rules.length });
+  score.className = `score ${met === rules.length ? "ok" : met >= rules.length - 1 ? "part" : "bad"}`;
+  renderBuffs(buffs);
+}
+
+function describe([c, r, spec]) {
+  const cls = t(CLASSES[c].name);
+  const name = spec ? t("{spec} {cls}", { spec: t((c === "priest" ? PRIEST_SPECS : DRUID_SPECS)[spec]), cls }) : cls;
+  return r === "tank" ? t("{name} tank", { name }) : r === "heal" ? t("{name} healer", { name }) : name;
+}
+
+function renderPresets() {
+  const box = document.getElementById("presets");
+  box.innerHTML = "";
+  PRESETS.forEach((p, i) => {
+    const b = el("button", { type: "button", class: "preset", id: `preset-${i + 1}` }, `<b>${t(p.name)}</b><span>${p.party.map(describe).join(", ")}</span>`);
+    b.addEventListener("click", () => { party = p.party.map(([c, r, spec]) => member(c, r, spec)); render(); });
+    box.appendChild(b);
+  });
+}
+
+function render() { renderPicker(); renderSlots(); renderRules(); }
+
+/* Static text is marked with data-i18n; its English original is kept here so switching back works. */
+const STATIC = [...document.querySelectorAll("[data-i18n]")].map(e => [e, e.textContent.trim()]);
+const TITLE = document.title;
+
+function setLang(lang, save) {
+  LANG = lang;
+  document.documentElement.lang = lang;
+  if (save) try { localStorage.setItem("builder-lang", lang); } catch (e) {}
+  document.title = t(TITLE);
+  STATIC.forEach(([e, en]) => (e.textContent = t(en)));
+  const toggle = document.getElementById("lang");
+  toggle.setAttribute("aria-label", t("Language"));
+  toggle.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  renderPresets();
+  render();
+}
+
+document.getElementById("clear-all").addEventListener("click", () => { party = []; render(); });
+document.querySelectorAll("#lang button").forEach(b => b.addEventListener("click", () => setLang(b.dataset.lang, true)));
+let savedLang = null;
+try { savedLang = localStorage.getItem("builder-lang"); } catch (e) {}
+setLang(savedLang === "de" || savedLang === "en" ? savedLang : (navigator.language || "").toLowerCase().startsWith("de") ? "de" : "en", false);
+</script>
+
+</body></html>
